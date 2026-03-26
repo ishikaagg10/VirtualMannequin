@@ -47,16 +47,13 @@ export const floorFSText = `
 export const sceneVSText = `
     precision mediump float;
 
-	//Placeholder value for passing through undeformed verts 
-	//(should be discarded in final version of shader)
     attribute vec3 vertPosition;
-	
     attribute vec2 aUV;
     attribute vec3 aNorm;
     attribute vec4 skinIndices;
     attribute vec4 skinWeights;
-	
-	//vertices used for bone weights (assumes up to four weights per vertex)
+    
+    //vertices used for bone weights (assumes up to four weights per vertex)
     attribute vec4 v0;
     attribute vec4 v1;
     attribute vec4 v2;
@@ -71,14 +68,28 @@ export const sceneVSText = `
     uniform mat4 mView;
     uniform mat4 mProj;
 
-	//Joint translations and rotations to determine weights (assumes up to 64 joints per rig)
+    //Joint translations and rotations to determine weights (assumes up to 64 joints per rig)
     uniform vec3 jTrans[64];
     uniform vec4 jRots[64];
 
+    // Helper function to apply quaternion rotation to a vector
+    vec3 qtrans(vec4 q, vec3 v) {
+        return v + 2.0 * cross(cross(v, q.xyz) - q.w*v, q.xyz);
+    }
 
     void main () {
-	
-        vec3 trans = vertPosition;
+        // Calculate the deformed position for each of the up-to-4 influencing bones
+        vec3 pos0 = jTrans[int(skinIndices.x)] + qtrans(jRots[int(skinIndices.x)], v0.xyz);
+        vec3 pos1 = jTrans[int(skinIndices.y)] + qtrans(jRots[int(skinIndices.y)], v1.xyz);
+        vec3 pos2 = jTrans[int(skinIndices.z)] + qtrans(jRots[int(skinIndices.z)], v2.xyz);
+        vec3 pos3 = jTrans[int(skinIndices.w)] + qtrans(jRots[int(skinIndices.w)], v3.xyz);
+
+        // Blend the positions together using the skin weights
+        vec3 trans = (pos0 * skinWeights.x) + 
+                     (pos1 * skinWeights.y) + 
+                     (pos2 * skinWeights.z) + 
+                     (pos3 * skinWeights.w);
+
         vec4 worldPosition = mWorld * vec4(trans, 1.0);
         gl_Position = mProj * mView * worldPosition;
         
@@ -87,7 +98,7 @@ export const sceneVSText = `
         
         vec4 aNorm4 = vec4(aNorm, 0.0);
         normal = normalize(mWorld * vec4(aNorm, 0.0));
-	
+    
         uv = aUV;
     }
 

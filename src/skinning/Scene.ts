@@ -48,6 +48,10 @@ export class Bone {
   public endpoint: Vec3; // current position of the bone's second (non-joint) endpoint, in world coordinates
   public rotation: Quat; // current orientation of the joint *with respect to world coordinates*
   
+  public initialPosition: Vec3;
+  public initialEndpoint: Vec3;
+  public localRotation: Quat;
+  public offset: Vec3;
 
   constructor(bone: BoneLoader) {
     this.parent = bone.parent;
@@ -55,6 +59,11 @@ export class Bone {
     this.position = bone.position.copy();
     this.endpoint = bone.endpoint.copy();
     this.rotation = bone.rotation.copy();
+
+    this.initialPosition = bone.position.copy();
+    this.initialEndpoint = bone.endpoint.copy();
+    this.localRotation = new Quat([0, 0, 0, 1]);
+    this.offset = new Vec3([0, 0, 0]);
   }
 }
 
@@ -84,9 +93,58 @@ export class Mesh {
     this.boneIndices = Array.from(mesh.boneIndices);
     this.bonePositions = new Float32Array(mesh.bonePositions);
     this.boneIndexAttribute = new Float32Array(mesh.boneIndexAttribute);
+
+    this.bones.forEach(bone => {
+      if (bone.parent === -1) {
+        bone.offset = bone.initialPosition.copy();
+      } else {
+        let parent = this.bones[bone.parent];
+        bone.offset = new Vec3([
+          bone.initialPosition.x - parent.initialPosition.x,
+          bone.initialPosition.y - parent.initialPosition.y,
+          bone.initialPosition.z - parent.initialPosition.z
+        ]);
+      }
+    });
   }
 
-  //TODO: Create functionality for bone manipulation/key-framing
+  public updateSkeleton() {
+    for (let i = 0; i < this.bones.length; i++) {
+      let bone = this.bones[i];
+      
+      if (bone.parent === -1) {
+        bone.rotation = bone.localRotation.copy();
+        bone.position = bone.initialPosition.copy();
+      } else {
+        let parent = this.bones[bone.parent];
+        
+        bone.rotation = parent.rotation.copy().multiply(bone.localRotation);
+        
+        let rotMatrix = parent.rotation.toMat3();
+        let rotatedOffset = rotMatrix.multiplyVec3(bone.offset.copy());
+        
+        bone.position = new Vec3([
+          parent.position.x + rotatedOffset.x,
+          parent.position.y + rotatedOffset.y,
+          parent.position.z + rotatedOffset.z
+        ]);
+      }
+      
+      let endOffset = new Vec3([
+        bone.initialEndpoint.x - bone.initialPosition.x,
+        bone.initialEndpoint.y - bone.initialPosition.y,
+        bone.initialEndpoint.z - bone.initialPosition.z
+      ]);
+      let rotMatrixEnd = bone.rotation.toMat3();
+      let rotatedEndOffset = rotMatrixEnd.multiplyVec3(endOffset);
+      
+      bone.endpoint = new Vec3([
+        bone.position.x + rotatedEndOffset.x,
+        bone.position.y + rotatedEndOffset.y,
+        bone.position.z + rotatedEndOffset.z
+      ]);
+    }
+  }
 
   public getBoneIndices(): Uint32Array {
     return new Uint32Array(this.boneIndices);

@@ -283,7 +283,9 @@ export class SkinningAnimation extends CanvasAnimation {
     deltaT /= 1000;
     this.getGUI().incrementTime(deltaT);
 
-	//TODO: Handle mesh playback if implementing for project spec
+    if (this.scene.meshes.length > 0) {
+      this.scene.meshes[0].updateSkeleton();
+    }
 
     if (this.ctx2) {
       this.ctx2.clearRect(0, 0, this.ctx2.canvas.width, this.ctx2.canvas.height);
