@@ -124,6 +124,8 @@ export const skeletonVSText = `
     attribute vec3 vertPosition;
     attribute float boneIndex;
     
+    varying float vBoneIndex;
+
     uniform mat4 mWorld;
     uniform mat4 mView;
     uniform mat4 mProj;
@@ -136,6 +138,7 @@ export const skeletonVSText = `
     }
 
     void main () {
+        vBoneIndex = boneIndex;
         int index = int(boneIndex);
         gl_Position = mProj * mView * mWorld * vec4(bTrans[index] + qtrans(bRots[index], vertPosition), 1.0);
     }
@@ -144,8 +147,15 @@ export const skeletonVSText = `
 export const skeletonFSText = `
     precision mediump float;
 
+    varying float vBoneIndex;
+    uniform float highlightedBone;
+
     void main () {
-        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        if (abs(vBoneIndex - highlightedBone) < 0.1) {
+            gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+        } else {
+            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        }
     }
 `;
 

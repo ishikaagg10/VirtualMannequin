@@ -52,6 +52,7 @@ export class GUI implements IGUI {
   public hoverX: number = 0;
   public hoverY: number = 0;
 
+  public highlightedBoneIndex: number = -1;
 
   /**
    *
@@ -212,9 +213,96 @@ export class GUI implements IGUI {
         }
       }
     } 
-    // TODO: Add logic here:
-    // 1) To highlight a bone, if the mouse is hovering over a bone;
-    // 2) To rotate a bone, if the mouse button is pressed and currently highlighting a bone.
+    else {
+      if (y > 600 || this.mode !== Mode.edit) return;
+
+      let x_ndc = (x / this.width) * 2.0 - 1.0;
+      let y_ndc = 1.0 - (y / 600.0) * 2.0; 
+
+      let invProj = this.projMatrix().copy().inverse();
+      let invView = this.viewMatrix().copy().inverse();
+      
+      let clipCoords = new Vec4([x_ndc, y_ndc, -1.0, 1.0]); 
+      
+      let eyeCoords = invProj.multiplyVec4(clipCoords);
+      eyeCoords = new Vec4([eyeCoords.x, eyeCoords.y, -1.0, 0.0]);
+      
+      let worldRayDir = invView.multiplyVec4(eyeCoords);
+      let rayDir = new Vec3([worldRayDir.x, worldRayDir.y, worldRayDir.z]).normalize();
+      
+      let rayOrigin = this.camera.pos();
+
+      let closestBoneIndex = -1;
+      let closestT = Infinity;
+      const hitRadius = 0.2;
+      
+      let meshes = this.animation.getScene().meshes;
+      if (meshes.length > 0) {
+        let bones = meshes[0].bones;
+        
+        for (let i = 0; i < bones.length; i++) {
+          let bone = bones[i];
+          
+          let A = bone.position;
+          let B = bone.endpoint;
+          
+          let AB = new Vec3([B.x - A.x, B.y - A.y, B.z - A.z]);
+          if (Vec3.dot(AB, AB) < 0.0001) continue;
+          
+          let w0 = new Vec3([rayOrigin.x - A.x, rayOrigin.y - A.y, rayOrigin.z - A.z]);
+          
+          let a = Vec3.dot(rayDir, rayDir);
+          let b = Vec3.dot(rayDir, AB);
+          let c = Vec3.dot(AB, AB);
+          let d = Vec3.dot(rayDir, w0);
+          let e = Vec3.dot(AB, w0);
+          
+          let denom = a * c - b * b;
+          let sc = 0;
+          let tc = 0;
+          
+          if (denom < 1e-5) {
+            sc = 0;
+            tc = (b > c ? d / b : e / c);
+          } else {
+            sc = (a * e - b * d) / denom;
+            tc = (b * e - c * d) / denom;
+          }
+          
+          if (sc < 0.0) { sc = 0.0; tc = -d / a; }
+          else if (sc > 1.0) { sc = 1.0; tc = (b - d) / a; }
+          
+          if (tc < 0) continue;
+          
+          let pointOnRay = new Vec3([
+            rayOrigin.x + tc * rayDir.x,
+            rayOrigin.y + tc * rayDir.y,
+            rayOrigin.z + tc * rayDir.z
+          ]);
+          let pointOnSeg = new Vec3([
+            A.x + sc * AB.x,
+            A.y + sc * AB.y,
+            A.z + sc * AB.z
+          ]);
+          
+          let distVec = new Vec3([
+            pointOnRay.x - pointOnSeg.x,
+            pointOnRay.y - pointOnSeg.y,
+            pointOnRay.z - pointOnSeg.z
+          ]);
+          let distance = Math.sqrt(Vec3.dot(distVec, distVec));
+          
+          if (distance < hitRadius && tc < closestT) {
+            closestT = tc;
+            closestBoneIndex = i;
+          }
+        }
+      }
+
+      if (this.highlightedBoneIndex !== closestBoneIndex) {
+        this.highlightedBoneIndex = closestBoneIndex;
+      }
+    }
   }
   
  
