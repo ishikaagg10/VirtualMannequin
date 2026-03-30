@@ -1,3 +1,59 @@
+// ==================== SHADOW MAP SHADERS ====================
+
+// Vertex shader for shadow depth pass - renders scene from light's POV
+export const shadowVSText = `
+    precision mediump float;
+
+    attribute vec3 vertPosition;
+    attribute vec4 skinIndices;
+    attribute vec4 skinWeights;
+    attribute vec4 v0;
+    attribute vec4 v1;
+    attribute vec4 v2;
+    attribute vec4 v3;
+
+    uniform mat4 uLightViewProj;
+    uniform mat4 mWorld;
+    uniform vec3 jTrans[64];
+    uniform vec4 jRots[64];
+
+    vec3 qtrans(vec4 q, vec3 v) {
+        return v + 2.0 * cross(cross(v, q.xyz) - q.w*v, q.xyz);
+    }
+
+    void main () {
+        vec3 pos0 = jTrans[int(skinIndices.x)] + qtrans(jRots[int(skinIndices.x)], v0.xyz);
+        vec3 pos1 = jTrans[int(skinIndices.y)] + qtrans(jRots[int(skinIndices.y)], v1.xyz);
+        vec3 pos2 = jTrans[int(skinIndices.z)] + qtrans(jRots[int(skinIndices.z)], v2.xyz);
+        vec3 pos3 = jTrans[int(skinIndices.w)] + qtrans(jRots[int(skinIndices.w)], v3.xyz);
+
+        vec3 trans = (pos0 * skinWeights.x) + 
+                     (pos1 * skinWeights.y) + 
+                     (pos2 * skinWeights.z) + 
+                     (pos3 * skinWeights.w);
+
+        gl_Position = uLightViewProj * mWorld * vec4(trans, 1.0);
+    }
+`;
+
+// Fragment shader for shadow depth pass - encodes depth into RGBA
+export const shadowFSText = `
+    precision mediump float;
+
+    vec4 encodeDepth(float v) {
+        vec4 enc = vec4(1.0, 255.0, 65025.0, 16581375.0) * v;
+        enc = fract(enc);
+        enc -= enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);
+        return enc;
+    }
+
+    void main () {
+        gl_FragColor = encodeDepth(gl_FragCoord.z);
+    }
+`;
+
+// ==================== FLOOR SHADERS ====================
+
 export const floorVSText = `
     precision mediump float;
 
@@ -5,15 +61,17 @@ export const floorVSText = `
     uniform mat4 uWorld;
     uniform mat4 uView;
     uniform mat4 uProj;
+    uniform mat4 uLightViewProj;
     
     attribute vec4 aVertPos;
 
     varying vec4 vClipPos;
+    varying vec4 vLightSpacePos;
 
     void main () {
-
         gl_Position = uProj * uView * uWorld * aVertPos;
         vClipPos = gl_Position;
+        vLightSpacePos = uLightViewProj * uWorld * aVertPos;
     }
 `;
 
@@ -23,8 +81,33 @@ export const floorFSText = `
     uniform mat4 uViewInv;
     uniform mat4 uProjInv;
     uniform vec4 uLightPos;
+    uniform sampler2D uShadowMap;
+    uniform float uShadowEnabled;
 
     varying vec4 vClipPos;
+    varying vec4 vLightSpacePos;
+
+    float decodeDepth(vec4 rgba) {
+        return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));
+    }
+
+    float getShadow(vec4 lightSpacePos) {
+        vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
+        projCoords = projCoords * 0.5 + 0.5;
+        
+        if (projCoords.x < 0.0 || projCoords.x > 1.0 || 
+            projCoords.y < 0.0 || projCoords.y > 1.0 ||
+            projCoords.z > 1.0) {
+            return 1.0;
+        }
+        
+        float closestDepth = decodeDepth(texture2D(uShadowMap, projCoords.xy));
+        float currentDepth = projCoords.z;
+        float bias = 0.005;
+        
+        float shadow = currentDepth - bias > closestDepth ? 0.5 : 1.0;
+        return shadow;
+    }
 
     void main() {
         vec4 wsPos = uViewInv * uProjInv * vec4(vClipPos.xyz/vClipPos.w, 1.0);
@@ -39,10 +122,17 @@ export const floorFSText = `
         vec4 lightDirection = uLightPos - wsPos;
         float dot_nl = dot(normalize(lightDirection), vec4(0.0, 1.0, 0.0, 0.0));
 	    dot_nl = clamp(dot_nl, 0.0, 1.0);
+
+        float shadow = 1.0;
+        if (uShadowEnabled > 0.5) {
+            shadow = getShadow(vLightSpacePos);
+        }
 	
-        gl_FragColor = vec4(clamp(dot_nl * color, 0.0, 1.0), 1.0);
+        gl_FragColor = vec4(clamp(dot_nl * color * shadow, 0.0, 1.0), 1.0);
     }
 `;
+
+// ==================== SCENE SHADERS ====================
 
 export const sceneVSText = `
     precision mediump float;
@@ -62,11 +152,13 @@ export const sceneVSText = `
     varying vec4 lightDir;
     varying vec2 uv;
     varying vec4 normal;
+    varying vec4 vLightSpacePos;
  
     uniform vec4 lightPosition;
     uniform mat4 mWorld;
     uniform mat4 mView;
     uniform mat4 mProj;
+    uniform mat4 uLightViewProj;
 
     //Joint translations and rotations to determine weights (assumes up to 64 joints per rig)
     uniform vec3 jTrans[64];
@@ -100,6 +192,7 @@ export const sceneVSText = `
         normal = normalize(mWorld * vec4(aNorm, 0.0));
     
         uv = aUV;
+        vLightSpacePos = uLightViewProj * worldPosition;
     }
 
 `;
@@ -110,12 +203,42 @@ export const sceneFSText = `
     varying vec4 lightDir;
     varying vec2 uv;
     varying vec4 normal;
+    varying vec4 vLightSpacePos;
 
     uniform sampler2D uTexture;
     uniform float hasTexture;
+    uniform sampler2D uShadowMap;
+    uniform float uShadowEnabled;
+
+    float decodeDepth(vec4 rgba) {
+        return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));
+    }
+
+    float getShadow(vec4 lightSpacePos) {
+        vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
+        projCoords = projCoords * 0.5 + 0.5;
+        
+        if (projCoords.x < 0.0 || projCoords.x > 1.0 || 
+            projCoords.y < 0.0 || projCoords.y > 1.0 ||
+            projCoords.z > 1.0) {
+            return 1.0;
+        }
+        
+        float closestDepth = decodeDepth(texture2D(uShadowMap, projCoords.xy));
+        float currentDepth = projCoords.z;
+        float bias = 0.005;
+        
+        float shadow = currentDepth - bias > closestDepth ? 0.5 : 1.0;
+        return shadow;
+    }
 
     void main () {
         vec3 normColor = vec3((normal.x + 1.0)/2.0, (normal.y + 1.0)/2.0, (normal.z + 1.0)/2.0);
+        
+        float shadow = 1.0;
+        if (uShadowEnabled > 0.5) {
+            shadow = getShadow(vLightSpacePos);
+        }
         
         if (hasTexture > 0.5) {
             vec4 texColor = texture2D(uTexture, uv);
@@ -123,14 +246,15 @@ export const sceneFSText = `
             // Simple diffuse lighting with texture
             float dot_nl = max(dot(normalize(lightDir), normal), 0.0);
             dot_nl = clamp(dot_nl * 0.8 + 0.2, 0.0, 1.0); // ambient + diffuse
-            gl_FragColor = vec4(texColor.rgb * dot_nl, texColor.a);
+            gl_FragColor = vec4(texColor.rgb * dot_nl * shadow, texColor.a);
         } else {
-            gl_FragColor = vec4(normColor, 1.0);
+            gl_FragColor = vec4(normColor * shadow, 1.0);
         }
     }
 `;
 
 
+// ==================== SKELETON SHADERS ====================
 
 export const skeletonVSText = `
     precision mediump float;
