@@ -80,15 +80,17 @@ export class RenderPass {
         attrBuffer.bufferId = gl.createBuffer() as WebGLBuffer;
         gl.bindBuffer(gl.ARRAY_BUFFER, attrBuffer.bufferId);
         gl.bufferData(gl.ARRAY_BUFFER, attrBuffer.data, gl.STATIC_DRAW);
-        gl.vertexAttribPointer(
-          attrLoc,
-          attr.size,
-          attr.type,
-          attr.normalized,
-          attr.stride,
-          attr.offset
-        )
-        gl.enableVertexAttribArray(attrLoc);
+        if (attrLoc !== -1) {
+          gl.vertexAttribPointer(
+            attrLoc,
+            attr.size,
+            attr.type,
+            attr.normalized,
+            attr.stride,
+            attr.offset
+          )
+          gl.enableVertexAttribArray(attrLoc);
+        }
       } else {
         console.error("Attribute's buffer name not found", this);
       }
@@ -142,6 +144,7 @@ export class RenderPass {
       uniform.bindFunction(gl, uniform.location);
     });
     if (this.textureMapped) {
+      gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, this.texture);
     }
     gl.drawElements(this.drawMode, this.drawCount, this.drawType, this.drawOffset);

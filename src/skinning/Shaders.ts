@@ -111,8 +111,22 @@ export const sceneFSText = `
     varying vec2 uv;
     varying vec4 normal;
 
+    uniform sampler2D uTexture;
+    uniform float hasTexture;
+
     void main () {
-        gl_FragColor = vec4((normal.x + 1.0)/2.0, (normal.y + 1.0)/2.0, (normal.z + 1.0)/2.0,1.0);
+        vec3 normColor = vec3((normal.x + 1.0)/2.0, (normal.y + 1.0)/2.0, (normal.z + 1.0)/2.0);
+        
+        if (hasTexture > 0.5) {
+            vec4 texColor = texture2D(uTexture, uv);
+            
+            // Simple diffuse lighting with texture
+            float dot_nl = max(dot(normalize(lightDir), normal), 0.0);
+            dot_nl = clamp(dot_nl * 0.8 + 0.2, 0.0, 1.0); // ambient + diffuse
+            gl_FragColor = vec4(texColor.rgb * dot_nl, texColor.a);
+        } else {
+            gl_FragColor = vec4(normColor, 1.0);
+        }
     }
 `;
 

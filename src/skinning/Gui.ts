@@ -155,6 +155,13 @@ export class GUI implements IGUI {
     if (this.highlightedBoneIndex !== -1 && mouse.button === 0) {
       this.draggingBone = true;
     }
+    // Right-click on a highlighted root bone = translate mode
+    if (this.highlightedBoneIndex !== -1 && mouse.button === 2) {
+      let meshes = this.animation.getScene().meshes;
+      if (meshes.length > 0 && meshes[0].bones[this.highlightedBoneIndex].parent === -1) {
+        this.draggingBone = true;
+      }
+    }
   }
 
   public incrementTime(dT: number): void {
@@ -192,20 +199,33 @@ export class GUI implements IGUI {
         if (meshes.length > 0) {
           let bone = meshes[0].bones[this.highlightedBoneIndex];
           
-          let axis = this.camera.up().copy().scale(-dx).add(this.camera.right().copy().scale(-dy)).normalize();
-          let angle = Math.sqrt(dx * dx + dy * dy) * 0.01;
-          
-          let parentRot = new Quat([0, 0, 0, 1]);
-          if (bone.parent !== -1) {
-            parentRot = meshes[0].bones[bone.parent].rotation.copy();
+          // Right-click drag on root bone = translate
+          if (mouse.buttons === 2 && bone.parent === -1) {
+            let moveSpeed = 0.02;
+            let right = this.camera.right().copy().scale(dx * moveSpeed);
+            let up = this.camera.up().copy().scale(-dy * moveSpeed);
+            bone.localTranslation = new Vec3([
+              bone.localTranslation.x + right.x + up.x,
+              bone.localTranslation.y + right.y + up.y,
+              bone.localTranslation.z + right.z + up.z
+            ]);
+          } else {
+            // Left-click drag = rotate (existing behavior)
+            let axis = this.camera.up().copy().scale(-dx).add(this.camera.right().copy().scale(-dy)).normalize();
+            let angle = Math.sqrt(dx * dx + dy * dy) * 0.01;
+            
+            let parentRot = new Quat([0, 0, 0, 1]);
+            if (bone.parent !== -1) {
+              parentRot = meshes[0].bones[bone.parent].rotation.copy();
+            }
+            
+            let invParentRot = parentRot.inverse();
+            let parentMat = invParentRot.toMat3();
+            let localAxis = parentMat.multiplyVec3(axis).normalize();
+            
+            let dragRot = Quat.fromAxisAngle(localAxis, angle);
+            bone.localRotation = dragRot.multiply(bone.localRotation);
           }
-          
-          let invParentRot = parentRot.inverse();
-          let parentMat = invParentRot.toMat3();
-          let localAxis = parentMat.multiplyVec3(axis).normalize();
-          
-          let dragRot = Quat.fromAxisAngle(localAxis, angle);
-          bone.localRotation = dragRot.multiply(bone.localRotation);
         }
       } else {
         const mouseDir: Vec3 = this.camera.right();

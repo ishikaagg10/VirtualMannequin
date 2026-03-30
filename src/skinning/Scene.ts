@@ -52,6 +52,7 @@ export class Bone {
   public initialEndpoint: Vec3;
   public localRotation: Quat;
   public offset: Vec3;
+  public localTranslation: Vec3; // translation offset for root joints
 
   constructor(bone: BoneLoader) {
     this.parent = bone.parent;
@@ -64,6 +65,7 @@ export class Bone {
     this.initialEndpoint = bone.endpoint.copy();
     this.localRotation = new Quat([0, 0, 0, 1]);
     this.offset = new Vec3([0, 0, 0]);
+    this.localTranslation = new Vec3([0, 0, 0]);
   }
 }
 
@@ -114,7 +116,11 @@ export class Mesh {
       
       if (bone.parent === -1) {
         bone.rotation = bone.localRotation.copy();
-        bone.position = bone.initialPosition.copy();
+        bone.position = new Vec3([
+          bone.initialPosition.x + bone.localTranslation.x,
+          bone.initialPosition.y + bone.localTranslation.y,
+          bone.initialPosition.z + bone.localTranslation.z
+        ]);
       } else {
         let parent = this.bones[bone.parent];
         

@@ -183,6 +183,20 @@ export class SkinningAnimation extends CanvasAnimation {
         gl.uniform4fv(loc, this.scene.meshes[0].getBoneRotations());
     });
 
+    // Texture mapping support
+    let hasTextureMap = this.scene.meshes[0].imgSrc !== null;
+    this.sceneRenderPass.addUniform("hasTexture",
+      (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+        gl.uniform1f(loc, hasTextureMap ? 1.0 : 0.0);
+    });
+    this.sceneRenderPass.addUniform("uTexture",
+      (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+        gl.uniform1i(loc, 0);
+    });
+    if (hasTextureMap) {
+      this.sceneRenderPass.addTextureMap(this.scene.meshes[0].imgSrc as string);
+    }
+
     this.sceneRenderPass.setDrawData(this.ctx.TRIANGLES, this.scene.meshes[0].geometry.position.count, this.ctx.UNSIGNED_INT, 0);
     this.sceneRenderPass.setup();
   }
