@@ -27,6 +27,7 @@ export class SkinningAnimation extends CanvasAnimation {
   private millis: number;
 
   private loadedScene: string = "None";
+  private sceneScale: number = 1.0;
 
   /* Floor Rendering Info */
   private floor: Floor;
@@ -224,7 +225,7 @@ export class SkinningAnimation extends CanvasAnimation {
     });
     this.shadowRenderPass.addUniform("mWorld",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
-        gl.uniformMatrix4fv(loc, false, new Float32Array(new Mat4().setIdentity().all()));
+        gl.uniformMatrix4fv(loc, false, new Float32Array(new Mat4().setIdentity().scale(new Vec3([this.sceneScale, this.sceneScale, this.sceneScale])).all()));
     });
     this.shadowRenderPass.addUniform("jTrans",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
@@ -287,7 +288,7 @@ export class SkinningAnimation extends CanvasAnimation {
     });
     this.sceneRenderPass.addUniform("mWorld",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
-        gl.uniformMatrix4fv(loc, false, new Float32Array(new Mat4().setIdentity().all()));
+        gl.uniformMatrix4fv(loc, false, new Float32Array(new Mat4().setIdentity().scale(new Vec3([this.sceneScale, this.sceneScale, this.sceneScale])).all()));
     });
     this.sceneRenderPass.addUniform("mProj",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
@@ -351,7 +352,7 @@ export class SkinningAnimation extends CanvasAnimation {
 
     this.skeletonRenderPass.addUniform("mWorld",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
-        gl.uniformMatrix4fv(loc, false, new Float32Array(Mat4.identity.all()));
+        gl.uniformMatrix4fv(loc, false, new Float32Array(new Mat4().setIdentity().scale(new Vec3([this.sceneScale, this.sceneScale, this.sceneScale])).all()));
     });
     this.skeletonRenderPass.addUniform("mProj",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
@@ -532,6 +533,12 @@ export class SkinningAnimation extends CanvasAnimation {
    */
   public setScene(fileLocation: string): void {
     this.loadedScene = fileLocation;
+    // Mixamo models are in centimeters, need to scale down
+    if (fileLocation.indexOf("Ch09") !== -1) {
+      this.sceneScale = 0.01;
+    } else {
+      this.sceneScale = 1.0;
+    }
     this.scene = new CLoader(fileLocation);
     this.scene.load(() => this.initScene());
   }
