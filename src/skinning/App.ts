@@ -29,21 +29,16 @@ export class SkinningAnimation extends CanvasAnimation {
   private loadedScene: string = "None";
   private sceneScale: number = 1.0;
 
-  /* Floor Rendering Info */
   private floor: Floor;
   private floorRenderPass: RenderPass;
 
-  /* Scene rendering info */
   private scene: CLoader;
   private sceneRenderPass: RenderPass;
 
-  /* Skeleton rendering info */
   private skeletonRenderPass: RenderPass;
 
-  /* Scrub bar background rendering info */
   private sBackRenderPass: RenderPass;
 
-  /* Shadow map rendering info */
   private shadowRenderPass: RenderPass;
   private shadowFramebuffer: WebGLFramebuffer | null = null;
   private shadowTexture: WebGLTexture | null = null;
@@ -51,7 +46,6 @@ export class SkinningAnimation extends CanvasAnimation {
   private shadowMapSize: number = 1024;
   private shadowReady: boolean = false;
   
-  /* Global Rendering Info */
   private lightPosition: Vec4;
   private backgroundColor: Vec4;
 
@@ -99,24 +93,19 @@ export class SkinningAnimation extends CanvasAnimation {
     return this.scene;
   }
 
-  /**
-   * Setup the animation. This can be called again to reset the animation.
-   */
+ 
   public reset(): void {
       this.gui.reset();
       this.setScene(this.loadedScene);
   }
 
-  /**
-   * Compute the light's view-projection matrix for shadow mapping
-   */
+
   private getLightViewProjMatrix(): Mat4 {
     let lp = this.lightPosition;
     let lightPos = new Vec3([lp.x, lp.y, lp.z]);
     let lightTarget = new Vec3([0, 0, 0]);
     let lightUp = new Vec3([0, 1, 0]);
     
-    // If light is directly above, use a different up vector
     let dir = new Vec3([lightTarget.x - lightPos.x, lightTarget.y - lightPos.y, lightTarget.z - lightPos.z]);
     dir.normalize();
     if (Math.abs(dir.x) < 0.001 && Math.abs(dir.z) < 0.001) {
@@ -128,17 +117,14 @@ export class SkinningAnimation extends CanvasAnimation {
     return lightProj.multiply(lightView);
   }
 
-  /**
-   * Initialize the shadow map framebuffer and texture
-   */
+
   private initShadowMap(): void {
     let gl = this.ctx;
     
-    // Create shadow framebuffer
+  
     this.shadowFramebuffer = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFramebuffer);
 
-    // Create shadow texture (RGBA for encoded depth)
     this.shadowTexture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.shadowTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.shadowMapSize, this.shadowMapSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
@@ -148,13 +134,13 @@ export class SkinningAnimation extends CanvasAnimation {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.shadowTexture, 0);
 
-    // Create depth renderbuffer
+   
     this.shadowDepthBuffer = gl.createRenderbuffer();
     gl.bindRenderbuffer(gl.RENDERBUFFER, this.shadowDepthBuffer);
     gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, this.shadowMapSize, this.shadowMapSize);
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.shadowDepthBuffer);
 
-    // Check framebuffer status
+
     let status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
     if (status !== gl.FRAMEBUFFER_COMPLETE) {
       console.error("Shadow framebuffer is not complete:", status);
@@ -170,7 +156,6 @@ export class SkinningAnimation extends CanvasAnimation {
 
   public initGui(): void {
     
-    // Status bar background
     let verts = new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]);
     this.sBackRenderPass.setIndexBufferData(new Uint32Array([1, 0, 2, 2, 0, 3]))
     this.sBackRenderPass.addAttribute("vertPosition", 2, this.ctx.FLOAT, false,
@@ -189,9 +174,7 @@ export class SkinningAnimation extends CanvasAnimation {
     this.gui.reset();
   }
 
-  /**
-   * Sets up the shadow depth render pass for the mesh
-   */
+
   public initShadowPass(): void {
     this.shadowRenderPass = new RenderPass(this.extVAO, this.ctx, shadowVSText, shadowFSText);
 
@@ -240,9 +223,7 @@ export class SkinningAnimation extends CanvasAnimation {
     this.shadowRenderPass.setup();
   }
 
-  /**
-   * Sets up the mesh and mesh drawing
-   */
+ 
   public initModel(): void {
     this.sceneRenderPass = new RenderPass(this.extVAO, this.ctx, sceneVSText, sceneFSText);
 
@@ -255,7 +236,6 @@ export class SkinningAnimation extends CanvasAnimation {
     }    
     this.sceneRenderPass.setIndexBufferData(fIndices);
 
-	//vertPosition is a placeholder value until skinning is in place
     this.sceneRenderPass.addAttribute("vertPosition", 3, this.ctx.FLOAT, false,
     3 * Float32Array.BYTES_PER_ELEMENT, 0, undefined, this.scene.meshes[0].geometry.position.values);
     this.sceneRenderPass.addAttribute("aNorm", 3, this.ctx.FLOAT, false,
@@ -268,7 +248,6 @@ export class SkinningAnimation extends CanvasAnimation {
         2 * Float32Array.BYTES_PER_ELEMENT, 0, undefined, new Float32Array(this.scene.meshes[0].geometry.normal.values.length));
     }
 	
-	//Note that these attributes will error until you use them in the shader
     this.sceneRenderPass.addAttribute("skinIndices", 4, this.ctx.FLOAT, false,
       4 * Float32Array.BYTES_PER_ELEMENT, 0, undefined, this.scene.meshes[0].geometry.skinIndex.values);
     this.sceneRenderPass.addAttribute("skinWeights", 4, this.ctx.FLOAT, false,
@@ -311,7 +290,6 @@ export class SkinningAnimation extends CanvasAnimation {
         gl.uniformMatrix4fv(loc, false, new Float32Array(this.getLightViewProjMatrix().all()));
     });
 
-    // Texture mapping support
     let hasTextureMap = this.scene.meshes[0].imgSrc !== null;
     this.sceneRenderPass.addUniform("hasTexture",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
@@ -325,7 +303,6 @@ export class SkinningAnimation extends CanvasAnimation {
       this.sceneRenderPass.addTextureMap(this.scene.meshes[0].imgSrc as string);
     }
 
-    // Shadow map uniform
     this.sceneRenderPass.addUniform("uShadowMap",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniform1i(loc, 1);
@@ -339,9 +316,7 @@ export class SkinningAnimation extends CanvasAnimation {
     this.sceneRenderPass.setup();
   }
  
-  /**
-   * Sets up the skeleton drawing
-   */
+  
   public initSkeleton(): void {
     this.skeletonRenderPass.setIndexBufferData(this.scene.meshes[0].getBoneIndices());
 
@@ -380,9 +355,7 @@ export class SkinningAnimation extends CanvasAnimation {
     this.skeletonRenderPass.setup();
   }
 
-  /**
-   * Sets up the floor drawing
-   */
+  
   public initFloor(): void {
     this.floorRenderPass.setIndexBufferData(this.floor.indicesFlat());
     this.floorRenderPass.addAttribute("aVertPos",
@@ -423,7 +396,6 @@ export class SkinningAnimation extends CanvasAnimation {
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(this.getLightViewProjMatrix().all()));
     });
-    // Shadow map uniform for floor
     this.floorRenderPass.addUniform("uShadowMap",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniform1i(loc, 0);
@@ -463,7 +435,6 @@ export class SkinningAnimation extends CanvasAnimation {
 
     const gl: WebGLRenderingContext = this.ctx;
 
-    // === Shadow pass: render depth from light's POV ===
     if (this.shadowReady && this.scene.meshes.length > 0) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFramebuffer);
       gl.viewport(0, 0, this.shadowMapSize, this.shadowMapSize);
@@ -471,13 +442,12 @@ export class SkinningAnimation extends CanvasAnimation {
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.enable(gl.DEPTH_TEST);
       gl.enable(gl.CULL_FACE);
-      gl.cullFace(gl.FRONT); // Render back faces to reduce shadow acne
+      gl.cullFace(gl.FRONT); 
       this.shadowRenderPass.draw();
       gl.cullFace(gl.BACK);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
-    // === Main rendering pass ===
     const bg: Vec4 = this.backgroundColor;
     gl.clearColor(bg.r, bg.g, bg.b, bg.a);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -508,9 +478,7 @@ export class SkinningAnimation extends CanvasAnimation {
     }
     this.floorRenderPass.draw();
 
-    /* Draw Scene */
     if (this.scene.meshes.length > 0) {
-      // Bind shadow map to texture unit 1 for the scene (unit 0 may be used by material texture)
       if (this.shadowReady && this.shadowTexture) {
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, this.shadowTexture);

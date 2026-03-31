@@ -210,21 +210,15 @@ export class GUI implements IGUI {
               bone.localTranslation.z + right.z + up.z
             ]);
           } else {
-            // Left-click drag = rotate (existing behavior)
-            let axis = this.camera.up().copy().scale(-dx).add(this.camera.right().copy().scale(-dy)).normalize();
-            let angle = Math.sqrt(dx * dx + dy * dy) * 0.01;
-            
-            let parentRot = new Quat([0, 0, 0, 1]);
-            if (bone.parent !== -1) {
-              parentRot = meshes[0].bones[bone.parent].rotation.copy();
+            // Left-click drag = rotate
+            if (Math.abs(dx) > 0) {
+              let rotX = Quat.fromAxisAngle(new Vec3([0, 1, 0]), dx * 0.01);
+              bone.localRotation = rotX.multiply(bone.localRotation);
             }
-            
-            let invParentRot = parentRot.inverse();
-            let parentMat = invParentRot.toMat3();
-            let localAxis = parentMat.multiplyVec3(axis).normalize();
-            
-            let dragRot = Quat.fromAxisAngle(localAxis, angle);
-            bone.localRotation = dragRot.multiply(bone.localRotation);
+            if (Math.abs(dy) > 0) {
+              let rotY = Quat.fromAxisAngle(new Vec3([1, 0, 0]), dy * 0.01);
+              bone.localRotation = rotY.multiply(bone.localRotation);
+            }
           }
         }
       } else {

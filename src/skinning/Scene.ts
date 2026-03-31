@@ -2,7 +2,6 @@ import { Mat4, Quat, Vec3 } from "../lib/TSM.js";
 import { AttributeLoader, MeshGeometryLoader, BoneLoader, MeshLoader } from "./AnimationFileLoader.js";
 //TODO: Generate cylinder geometry for highlighting bones
 
-//General class for handling GLSL attributes
 export class Attribute {
   values: Float32Array;
   count: number;
@@ -15,14 +14,14 @@ export class Attribute {
   }
 }
 
-//Class for handling mesh vertices and skin weights
+
 export class MeshGeometry {
   position: Attribute;
   normal: Attribute;
   uv: Attribute | null = null;
-  skinIndex: Attribute; // bones indices that affect each vertex
-  skinWeight: Attribute; // weight of associated bone
-  v0: Attribute; // position of each vertex of the mesh *in the coordinate system of bone skinIndex[0]'s joint*. Perhaps useful for LBS.
+  skinIndex: Attribute;
+  skinWeight: Attribute; 
+  v0: Attribute; 
   v1: Attribute;
   v2: Attribute;
   v3: Attribute;
@@ -40,19 +39,18 @@ export class MeshGeometry {
   }
 }
 
-//Class for handling bones in the skeleton rig
 export class Bone {
   public parent: number;
   public children: number[];
-  public position: Vec3; // current position of the bone's joint *in world coordinates*. Used by the provided skeleton shader, so you need to keep this up to date.
-  public endpoint: Vec3; // current position of the bone's second (non-joint) endpoint, in world coordinates
-  public rotation: Quat; // current orientation of the joint *with respect to world coordinates*
+  public position: Vec3; 
+  public endpoint: Vec3; 
+  public rotation: Quat; 
   
   public initialPosition: Vec3;
   public initialEndpoint: Vec3;
   public localRotation: Quat;
   public offset: Vec3;
-  public localTranslation: Vec3; // translation offset for root joints
+  public localTranslation: Vec3; 
 
   constructor(bone: BoneLoader) {
     this.parent = bone.parent;
@@ -69,10 +67,9 @@ export class Bone {
   }
 }
 
-//Class for handling the overall mesh and rig
 export class Mesh {
   public geometry: MeshGeometry;
-  public worldMatrix: Mat4; // in this project all meshes and rigs have been transformed into world coordinates for you
+  public worldMatrix: Mat4; 
   public rotation: Vec3;
   public bones: Bone[];
   public materialName: string;

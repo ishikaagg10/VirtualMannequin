@@ -1,6 +1,4 @@
-// ==================== SHADOW MAP SHADERS ====================
 
-// Vertex shader for shadow depth pass - renders scene from light's POV
 export const shadowVSText = `
     precision mediump float;
 
@@ -36,7 +34,6 @@ export const shadowVSText = `
     }
 `;
 
-// Fragment shader for shadow depth pass - encodes depth into RGBA
 export const shadowFSText = `
     precision mediump float;
 
@@ -52,7 +49,6 @@ export const shadowFSText = `
     }
 `;
 
-// ==================== FLOOR SHADERS ====================
 
 export const floorVSText = `
     precision mediump float;
@@ -132,7 +128,6 @@ export const floorFSText = `
     }
 `;
 
-// ==================== SCENE SHADERS ====================
 
 export const sceneVSText = `
     precision mediump float;
@@ -254,7 +249,6 @@ export const sceneFSText = `
 `;
 
 
-// ==================== SKELETON SHADERS ====================
 
 export const skeletonVSText = `
     precision mediump float;
